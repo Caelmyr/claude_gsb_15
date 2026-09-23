@@ -43,17 +43,20 @@ class NamedEntityRecognizer:
         }
 
     def recognize(self, text: str) -> List[Dict]:
-        """识别文本中的实体"""
+        """识别文本中的实体，保留每个实体在文本中的实际出现位置。"""
         entities = []
-        seen = set()
+        seen_spans = set()
+        matched_ranges = []
 
         for entity_type, patterns in self.entity_patterns.items():
             for pattern in patterns:
                 matches = re.finditer(pattern, text)
                 for match in matches:
                     entity_text = match.group()
-                    if entity_text not in seen:
-                        seen.add(entity_text)
+                    span_key = (match.start(), match.end(), entity_type)
+                    if span_key not in seen_spans:
+                        seen_spans.add(span_key)
+                        matched_ranges.append((match.start(), match.end()))
                         entities.append({
                             'text': entity_text,
                             'type': entity_type,
@@ -61,9 +64,19 @@ class NamedEntityRecognizer:
                             'end': match.end()
                         })
 
+        # 同一位置可能同时命中包含关系很强的长短两个规则，只保留较短、更具体的实体。
+        unique_entities = []
+        for entity in entities:
+            if not any(
+                start >= entity['start'] and end <= entity['end'] and
+                (end - start) < (entity['end'] - entity['start'])
+                for start, end in matched_ranges
+            ):
+                unique_entities.append(entity)
+
         # 按位置排序
-        entities.sort(key=lambda x: x['start'])
-        return entities
+        unique_entities.sort(key=lambda x: (x['start'], x['end']))
+        return unique_entities
 
     def recognize_with_context(self, text: str, context_window: int = 50) -> List[Dict]:
         """带上下文的实体识别"""

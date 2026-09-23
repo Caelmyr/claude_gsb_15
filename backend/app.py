@@ -22,8 +22,8 @@ CORS(app)
 
 # 初始化组件
 nlp_pipeline = NLPPipeline()
-graph_builder = GraphBuilder()
 graph_storage = GraphStorage()
+graph_builder = GraphBuilder(graph_storage)
 graph_query = GraphQuery(graph_storage)
 answer_generator = AnswerGenerator(graph_storage)
 dialogue_manager = DialogueManager()
