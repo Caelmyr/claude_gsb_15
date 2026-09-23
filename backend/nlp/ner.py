@@ -43,7 +43,11 @@ class NamedEntityRecognizer:
         }
 
     def recognize(self, text: str) -> List[Dict]:
-        """识别文本中的实体"""
+        """识别文本中的实体
+
+        按 (类型, 起始位置, 结束位置) 去重，保留同一实体在文本中
+        不同位置的每次出现，以便后续统计真实出现次数。
+        """
         entities = []
         seen = set()
 
@@ -52,8 +56,9 @@ class NamedEntityRecognizer:
                 matches = re.finditer(pattern, text)
                 for match in matches:
                     entity_text = match.group()
-                    if entity_text not in seen:
-                        seen.add(entity_text)
+                    span_key = (entity_type, match.start(), match.end())
+                    if span_key not in seen:
+                        seen.add(span_key)
                         entities.append({
                             'text': entity_text,
                             'type': entity_type,

@@ -9,33 +9,44 @@ from backend.graph.storage import GraphStorage
 class GraphBuilder:
     """图谱构建器"""
 
-    def __init__(self):
+    def __init__(self, storage: GraphStorage = None):
         self.nlp_pipeline = NLPPipeline()
-        self.storage = GraphStorage()
+        self.storage = storage or GraphStorage()
 
     def build_from_text(self, text: str, doc_id: str = None) -> Dict:
-        """从文本构建图谱"""
+        """从文本构建图谱
+
+        有 doc_id 时（解析上传文档），整体替换该文档对图谱的贡献，
+        重复解析同一文档不会累加计数；无 doc_id 时走增量添加。
+        """
         # NLP处理
         result = self.nlp_pipeline.process(text)
 
-        # 添加实体到图谱
-        for entity in result['entities']:
-            self.storage.add_entity(
-                entity['text'],
-                entity['type'],
-                {'context': entity.get('context', ''), 'doc_id': doc_id}
+        if doc_id is not None:
+            # 重新解析：先清除该文档的旧贡献，再写入最新结果
+            self.storage.merge_document(
+                doc_id, result['entities'], result['relations']
             )
+        else:
+            # 添加实体到图谱（按真实出现次数）
+            for entity in result['entities']:
+                self.storage.add_entity(
+                    entity['text'],
+                    entity['type'],
+                    {'context': entity.get('context', '')},
+                    count=entity.get('count', 1)
+                )
 
-        # 添加关系到图谱
-        for relation in result['relations']:
-            self.storage.add_relation(
-                relation['subject'],
-                relation['subject_type'],
-                relation['predicate'],
-                relation['object'],
-                relation['object_type'],
-                {'source_text': relation.get('source_text', ''), 'doc_id': doc_id}
-            )
+            # 添加关系到图谱（不增加实体出现次数）
+            for relation in result['relations']:
+                self.storage.add_relation(
+                    relation['subject'],
+                    relation['subject_type'],
+                    relation['predicate'],
+                    relation['object'],
+                    relation['object_type'],
+                    {'source_text': relation.get('source_text', '')}
+                )
 
         return {
             'doc_id': doc_id,

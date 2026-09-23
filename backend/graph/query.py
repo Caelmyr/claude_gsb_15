@@ -121,7 +121,7 @@ class GraphQuery:
                 'id': entity_data['id'],
                 'label': entity,
                 'type': entity_data['type'],
-                'count': entity_data.get('count', 1)
+                'count': entity_data.get('count', 0)
             })
 
         relations = self.storage.get_entity_relations(entity)

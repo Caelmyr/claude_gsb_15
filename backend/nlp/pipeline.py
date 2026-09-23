@@ -43,7 +43,7 @@ class NLPPipeline:
                 'relations': relations
             })
 
-        # 4. 实体去重
+        # 4. 实体去重（保留每个实体在全文中的真实出现次数）
         unique_entities = self._deduplicate_entities(all_entities)
 
         # 5. 关系去重
@@ -58,12 +58,20 @@ class NLPPipeline:
         }
 
     def _deduplicate_entities(self, entities: List[Dict]) -> List[Dict]:
-        """实体去重"""
+        """实体去重，同时统计每个实体在全文中的真实出现次数
+
+        NER 返回的实体按位置区分，同一实体在文本中每出现一次就有一条记录。
+        这里按 (文本, 类型) 合并为一条，并用 count 字段记录出现次数。
+        """
         seen = {}
         for entity in entities:
             key = (entity['text'], entity['type'])
             if key not in seen:
-                seen[key] = entity
+                merged = dict(entity)
+                merged['count'] = 1
+                seen[key] = merged
+            else:
+                seen[key]['count'] += 1
         return list(seen.values())
 
     def _deduplicate_relations(self, relations: List[Dict]) -> List[Dict]:
